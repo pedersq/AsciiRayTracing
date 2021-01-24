@@ -1,10 +1,13 @@
-CCFLAGS=-g
 CC=gcc
+CFLAGS=-I.
+DEPS = vectors.h OBJ.h
+OBJ = vectors.o OBJ.o gray_ascii.o
 
-all: sim
+%.o: %.c $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS)
 
-sim: gray_ascii.c
-	$(CC) $(CCFLAGS) -o sim gray_ascii.c vectors.c OBJ.c -l m
+sim: $(OBJ)
+	$(CC) -o $@ $^ $(CFLAGS) -lm
 
 clean:
-	rm -f sim
+	rm -f OBJ.o vectors.o sim gray_ascii.o

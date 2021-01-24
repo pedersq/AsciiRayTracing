@@ -13,7 +13,9 @@
 char float_to_ascii(float x);
 void print_img();
 void clearScreen();
+struct OBJTriangle* closest_intersection(struct Ray3* ray, struct OBJ* object);
 struct Ray3* gen_viewing_ray(float i, float j);
+int is_point_in_triangle(struct Ray3* ray, struct OBJTriangle* triangle);
 
 // The output image / frame
 float img[pixels_y][pixels_x];
@@ -30,6 +32,9 @@ struct Vec3* view_direction;
 // Viewport
 int viewport_height = 1;
 int viewport_width = 1;
+
+struct OBJ* objects[10];
+int num_objects = 0;
 
 char grayscale[] =  "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/()1{}[]?-_+~<>i!lI;:,^`'. ";
 
@@ -50,17 +55,18 @@ void clearScreen()
   write(STDOUT_FILENO, CLEAR_SCREEN_ANSI, 12);
 }
 
-void initCamera() {
+void initScene() {
   camera = Vec3(0.0, 0.0, 0.0);
   view_direction = Vec3(0.0, 0.0, 1.0);
+  struct OBJ* obj = load_obj("data/Sphere.obj");
+  objects[0] = obj;
+  num_objects += 1;
 }
 
 
 int main() {
 
-  char a[] = "Sphere.obj";
 
-  struct OBJ* obj = load_obj(a);
 
   return 0;
 
@@ -78,8 +84,65 @@ void a() {
       // Generate the viewing ray
       struct Ray3* viewing_ray = gen_viewing_ray(i, j);
 
+      for (int i = 1; i <= num_objects; i++) {
+        struct OBJTriangle* triangle = closest_intersection(viewing_ray, objects[i]);
+
+        // TODO: stopped working on lecture 7
+
+        // Probably need to calculate the lighting next
+        // Then color in the pixel accordingly
+
+      }
+
     }
   }
+}
+
+struct OBJTriangle* closest_intersection(struct Ray3* ray, struct OBJ* object) {
+
+  if (object->num_triangles == 0) {
+    return NULL;
+  }
+
+  struct OBJTriangle* triangle = object->triangles;
+
+  // min_distance = infinity
+  // closest_tri = NULL
+  // While triangle aint null:
+    // distance to triangle = is_point_in_triangle()
+    // if d_to_t is less than min_distance
+      // min_distance = d_to_t
+      // closest_tri = current triangle
+
+  // return cloestes triangle
+
+}
+
+// Returns -1 if not in triangle,
+// Returns distance from start of ray to the end if in the triangle
+int is_point_in_triangle(struct Ray3* ray, struct OBJTriangle* triangle) {
+
+  // This function will:
+    // Find the intersection of the ray with the plane if exists
+    // Check if it's in the triangle (using barycentric coordinates)
+
+
+  //TODO: find intersection with the plane first
+
+
+
+  struct Vec3* AB = subVec3(triangle->position2, triangle->position1);
+  struct Vec3* AC = subVec3(triangle->position3, triangle->position1);
+  struct Vec3* AB_cross_BC = crossVec3(AB, AC);
+  float areaABC = lenVec3(AB_cross_BC) / 2;
+
+  free(AB_cross_BC);
+  free(AB);
+  free(AC);
+
+
+
+
 }
 
 struct Ray3* gen_viewing_ray(float i, float j) {
