@@ -10,6 +10,8 @@
 #define pixels_x 150
 #define pixels_y 40
 
+#define epsilon 0.0005
+
 char float_to_ascii(float x);
 void print_img();
 void clearScreen();
@@ -59,6 +61,9 @@ void initScene() {
   camera = Vec3(0.0, 0.0, 0.0);
   view_direction = Vec3(0.0, 0.0, 1.0);
   struct OBJ* obj = load_obj("data/Sphere.obj");
+
+  printf("Found %d triangles!\n", obj->num_triangles);
+
   objects[0] = obj;
   num_objects += 1;
 }
@@ -66,7 +71,7 @@ void initScene() {
 
 int main() {
 
-
+  initScene();
 
   return 0;
 
@@ -129,20 +134,71 @@ int is_point_in_triangle(struct Ray3* ray, struct OBJTriangle* triangle) {
 
   //TODO: find intersection with the plane first
 
+  struct Vec3* point = ray_plane_intersect(ray, triangle);
 
+  float tri_area = area_of_triangle(triangle);
+  float alpha = barycentric_alpha(point, triangle->position2, triangle->position3, tri_area);
+  float beta = barycentric_beta(point, triangle->position1, triangle->position3, tri_area);
+  float gamma = 1 - alpha - beta;
 
+}
+
+struct Vec3* ray_plane_intersect(struct Ray3* ray, struct OBJTriangle* triangle) {
+
+  struct Vec3* normal = plane_normal(triangle);
+  float D = -triangle->position1->x * normal->x +
+            -triangle->position1->y * normal->y +
+            -triangle->position1->z * normal->z;
+
+  // Calculate t for the ray where they intersect
+    // Need to check if maybe the ray doesn't land.
+
+  //float t = -((D + ))
+
+}
+
+int point_in_barycentric(float alpha, float beta, float gamma) {
+  return alpha <= 1 && alpha >= 0 &&
+      beta <= 1 && beta >= 0 &&
+      gamma <= 1 && gamma >= 0 &&
+      float_equal(alpha + beta + gamma, 1.0);
+}
+
+int floats_equal(float f1, float f2) {
+  return fabsf(f1 - f2) <= epsilon;
+}
+
+float area_of_triangle(struct OBJTriangle* triangle) {
   struct Vec3* AB = subVec3(triangle->position2, triangle->position1);
   struct Vec3* AC = subVec3(triangle->position3, triangle->position1);
   struct Vec3* AB_cross_BC = crossVec3(AB, AC);
   float areaABC = lenVec3(AB_cross_BC) / 2;
-
   free(AB_cross_BC);
   free(AB);
   free(AC);
+  return areaABC;
+}
 
+float barycentric_alpha(struct Vec3* point, struct Vec3* B, struct Vec3* C, float areaABC) {
+  struct Vec3* PB = subVec3(B, point);
+  struct Vec3* PC = subVec3(C, point);
+  struct Vec3* cross = crossVec3(B, C);
+  float alpha = lenVec3(cross) / (2 * areaABC);
+  free(PB);
+  free(PC);
+  free(cross);
+  return alpha;
+}
 
-
-
+float barycentric_beta(struct Vec3* point, struct Vec3* A, struct Vec3* C, float areaABC) {
+  struct Vec3* PC = subVec3(C, point);
+  struct Vec3* PA = subVec3(A, point);
+  struct Vec3* cross = crossVec3(A, C);
+  float beta = lenVec3(cross) / (2 * areaABC);
+  free(PC);
+  free(PA);
+  free(cross);
+  return beta;
 }
 
 struct Ray3* gen_viewing_ray(float i, float j) {

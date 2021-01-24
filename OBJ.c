@@ -105,7 +105,7 @@ void populate_triangles(struct OBJ* obj) {
 
 struct Vec3* get_position(int idx, struct OBJ* obj) {
     struct OBJVec3* curr = obj->positions;
-    for (int i = 1; i < idx; i++) {
+    for (int i = 1; i <= idx; i++) {
       if (i == idx) {
         return curr->vec;
       }
@@ -118,7 +118,7 @@ struct Vec3* get_position(int idx, struct OBJ* obj) {
 
 struct Vec3* get_normal(int idx, struct OBJ* obj) {
     struct OBJVec3* curr = obj->normals;
-    for (int i = 1; i < idx; i++) {
+    for (int i = 1; i <= idx; i++) {
       if (i == idx) {
         return curr->vec;
       }
@@ -163,6 +163,14 @@ struct OBJTriangle* OBJTriangle(int i1, int i2, int i3, int i4, int i5, int i6) 
   tri->normal3 = NULL;
   tri->next = NULL;
   return tri;
+}
+
+struct Vec3* plane_normal(struct OBJTriangle* triangle) {
+  struct Vec3* AB = subVec3(triangle->position2, triangle->position1);
+  struct Vec3* AC = subVec3(triangle->position3, triangle->position1);
+  free(AB);
+  free(AC);
+  struct Vec3* normal = crossVec3(AB, AC);
 }
 
 
