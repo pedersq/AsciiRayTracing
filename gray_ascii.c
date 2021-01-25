@@ -3,8 +3,10 @@
 #include <stdlib.h>
 #include <math.h>
 #include <unistd.h>
+#include <float.h>
 #include "vectors.h"
 #include "OBJ.h"
+
 
 #define SCALE_LEN 66
 #define pixels_x 150
@@ -13,11 +15,19 @@
 #define epsilon 0.0005
 
 char float_to_ascii(float x);
-void print_img();
+void render_frame();
 void clearScreen();
-struct OBJTriangle* closest_intersection(struct Ray3* ray, struct OBJ* object);
+struct OBJTriangle* closest_intersection(struct Ray3* ray, struct OBJ* object, float* minT);
 struct Ray3* gen_viewing_ray(float i, float j);
-int is_point_in_triangle(struct Ray3* ray, struct OBJTriangle* triangle);
+float is_point_in_triangle(struct Ray3* ray, struct OBJTriangle* triangle);
+float barycentric_alpha(struct Vec3* point, struct Vec3* B, struct Vec3* C, float areaABC);
+float barycentric_beta(struct Vec3* point, struct Vec3* A, struct Vec3* C, float areaABC);
+float area_of_triangle(struct OBJTriangle* triangle);
+int floats_equal(float f1, float f2);
+int point_in_barycentric(float alpha, float beta, float gamma);
+struct Vec3* ray_plane_intersect(struct Ray3* ray, struct OBJTriangle* triangle, float* rayT);
+float calculate_lighting(struct Ray3* viewing_ray, float t, struct OBJTriangle* triangle);
+void process_frame();
 
 // The output image / frame
 float img[pixels_y][pixels_x];
@@ -35,6 +45,12 @@ struct Vec3* view_direction;
 int viewport_height = 1;
 int viewport_width = 1;
 
+// Light in the scene
+
+struct Vec3 light = {0.0, -1.0, 1.0};
+struct Vec3 neg_light = {0.0, 1.0, 0.0};
+float intensity = 1.0;
+
 struct OBJ* objects[10];
 int num_objects = 0;
 
@@ -45,7 +61,7 @@ void render_frame() {
   clearScreen();
   for (int j = 0; j < pixels_y; j++) {
     for (int i = 0; i < pixels_x; i++) {
-      printf("%c", float_to_ascii(img[j][i]));
+      printf("%c", float_to_ascii(img[i][j]));
     }
     printf("\n");
   }
@@ -58,20 +74,28 @@ void clearScreen()
 }
 
 void initScene() {
-  camera = Vec3(0.0, 0.0, 0.0);
-  view_direction = Vec3(0.0, 0.0, 1.0);
+  camera = Vec3(0.0, 0.0, 3.0);
+  view_direction = Vec3(0.0, 0.0, -1.0);
   struct OBJ* obj = load_obj("data/Sphere.obj");
 
-  printf("Found %d triangles!\n", obj->num_triangles);
+
 
   objects[0] = obj;
   num_objects += 1;
+
+  printf("Scene loaded.\n");
 }
 
 
 int main() {
 
   initScene();
+
+
+
+  process_frame();
+
+  render_frame();
 
   return 0;
 
@@ -81,79 +105,163 @@ int main() {
 
 
 
-void a() {
+void process_frame() {
 
   for (int j = 0; j < pixels_y; j++) {
     for (int i = 0; i < pixels_x; i++) {
 
+
+
       // Generate the viewing ray
       struct Ray3* viewing_ray = gen_viewing_ray(i, j);
 
+      // Keeps track of the cloeset triangle the ray hit
+      // accross all objects in the scene
+      struct OBJTriangle* triangle_hit;
+      float min_t = FLT_MAX;
+
+      // Checks every object in the scene for an intersction and saves the closest
+      // triangle hit from any object
       for (int i = 1; i <= num_objects; i++) {
-        struct OBJTriangle* triangle = closest_intersection(viewing_ray, objects[i]);
+        float t;
+        struct OBJTriangle* triangle = closest_intersection(viewing_ray, objects[i - 1], &t);
 
-        // TODO: stopped working on lecture 7
+        if (t < min_t) {
+          min_t = t;
+          triangle_hit = triangle;
+        }
+      }
 
-        // Probably need to calculate the lighting next
-        // Then color in the pixel accordingly
-
+      // Shades the pixel based on the triangle hit
+      if (closest_intersection != NULL) {
+        img[i][j] = calculate_lighting(viewing_ray, min_t, triangle_hit);
+      } else {
+        img[i][j] = 0.0;
       }
 
     }
   }
 }
 
-struct OBJTriangle* closest_intersection(struct Ray3* ray, struct OBJ* object) {
+// Calculates the lighting for a light on the triangle hit by the ray
+float calculate_lighting(struct Ray3* viewing_ray, float t, struct OBJTriangle* triangle) {
+
+  // TODO:
+  // CURRENTLY ONLY CALCULATES LIGHTING BASED ON THE NORMAL OF THE WHOLE
+  // TRIANGLE, BUT IN THE FUTURE IT WOULD BE GOOD TO INTERPOLATE THE NORMAL
+  // FROM THE 3 NORMALS STORED ON THE PASSED TRIANGLE
+
+
+  struct Vec3* tri_normal = plane_normal(triangle);
+
+  float n_dot_l = dotVec3(tri_normal, &neg_light);
+  free(tri_normal);
+
+  float theta = acosf(n_dot_l);
+
+  // Squishes the value between 0 and 1
+  float value = tanhf(theta);
+
+  return fmaxf(value, 0.0);
+
+}
+
+
+// Returns the closest triangle that the ray interescts in the object
+// Or null if it doesn't hit any
+struct OBJTriangle* closest_intersection(struct Ray3* ray, struct OBJ* object, float* minT) {
 
   if (object->num_triangles == 0) {
     return NULL;
   }
 
-  struct OBJTriangle* triangle = object->triangles;
+  struct OBJTriangle* curr = object->triangles;
 
-  // min_distance = infinity
-  // closest_tri = NULL
-  // While triangle aint null:
-    // distance to triangle = is_point_in_triangle()
-    // if d_to_t is less than min_distance
-      // min_distance = d_to_t
-      // closest_tri = current triangle
+  float min_t = FLT_MAX;
+  struct OBJTriangle* closest_tri = NULL;
 
-  // return cloestes triangle
+  int num_triangle = 0;
+
+  while (curr != NULL) {
+    num_triangle += 1;
+    printf("%d\n", num_triangle);
+    float distance_to_triangle = is_point_in_triangle(ray, curr);
+    if (min_t > distance_to_triangle) {
+      min_t = distance_to_triangle;
+      closest_tri = curr;
+    }
+    curr = curr->next;
+  }
+
+  *minT = min_t;
+  return closest_tri;
 
 }
 
-// Returns -1 if not in triangle,
+
+// This function will:
+// Find the intersection of the ray with the plane if exists
+// Check if it's in the triangle (using barycentric coordinates)
+// Returns -1.0 if not in triangle,
 // Returns distance from start of ray to the end if in the triangle
-int is_point_in_triangle(struct Ray3* ray, struct OBJTriangle* triangle) {
+float is_point_in_triangle(struct Ray3* ray, struct OBJTriangle* triangle) {
 
-  // This function will:
-    // Find the intersection of the ray with the plane if exists
-    // Check if it's in the triangle (using barycentric coordinates)
+  float t;
+  struct Vec3* point = ray_plane_intersect(ray, triangle, &t);
 
-
-  //TODO: find intersection with the plane first
-
-  struct Vec3* point = ray_plane_intersect(ray, triangle);
+  if (point == NULL) {
+    return -1.0;
+  }
 
   float tri_area = area_of_triangle(triangle);
   float alpha = barycentric_alpha(point, triangle->position2, triangle->position3, tri_area);
   float beta = barycentric_beta(point, triangle->position1, triangle->position3, tri_area);
   float gamma = 1 - alpha - beta;
 
+  if (point_in_barycentric(alpha, beta, gamma)) {
+    return t;
+  } else {
+    return -1.0;
+  }
+
 }
 
-struct Vec3* ray_plane_intersect(struct Ray3* ray, struct OBJTriangle* triangle) {
+// Saves t of the ray to the passed float pointer
+struct Vec3* ray_plane_intersect(struct Ray3* ray, struct OBJTriangle* triangle, float* rayT) {
 
   struct Vec3* normal = plane_normal(triangle);
   float D = -triangle->position1->x * normal->x +
             -triangle->position1->y * normal->y +
             -triangle->position1->z * normal->z;
 
-  // Calculate t for the ray where they intersect
-    // Need to check if maybe the ray doesn't land.
+  float a0 = ray->origin->x;
+  float b0 = ray->origin->y;
+  float c0 = ray->origin->z;
 
-  //float t = -((D + ))
+  float a = ray->dir->x;
+  float b = ray->dir->y;
+  float c = ray->dir->z;
+
+  float A = normal->x;
+  float B = normal->y;
+  float C = normal->z;
+
+  float denominator = (c*C + b*B + a*A);
+  if (denominator <= epsilon && denominator >=0) {
+    return NULL;
+  }
+
+  float numerator = (D + c0*C + b0*B + a0*A);
+
+  float t =  -(numerator / denominator);
+
+  *rayT = t;
+
+  struct Vec3* tS = multiplyVec3(ray->dir, t);
+  struct Vec3* point = addVec3(tS, ray->origin);
+  free(tS);
+
+  return point;
 
 }
 
@@ -161,7 +269,7 @@ int point_in_barycentric(float alpha, float beta, float gamma) {
   return alpha <= 1 && alpha >= 0 &&
       beta <= 1 && beta >= 0 &&
       gamma <= 1 && gamma >= 0 &&
-      float_equal(alpha + beta + gamma, 1.0);
+      floats_equal(alpha + beta + gamma, 1.0);
 }
 
 int floats_equal(float f1, float f2) {

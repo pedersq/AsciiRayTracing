@@ -4,7 +4,7 @@
 
 
 struct Vec3* Vec3(float a, float b, float c) {
-  struct Vec3* newvec = (struct Vec3*) malloc(sizeof(Vec3));
+  struct Vec3* newvec = (struct Vec3*) malloc(sizeof(struct Vec3));
   newvec->x = a;
   newvec->y = b;
   newvec->z = c;
@@ -71,7 +71,7 @@ struct Vec3* multiplyVec3(struct Vec3* s, float m) {
 }
 
 struct Ray3* Ray3(struct Vec3* start, struct Vec3* direction) {
-  struct Ray3* newray = (struct Ray3*) malloc(sizeof(Ray3));
+  struct Ray3* newray = (struct Ray3*) malloc(sizeof(struct Ray3));
   newray->origin = start;
   newray->dir = direction;
   return newray;

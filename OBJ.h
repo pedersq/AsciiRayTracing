@@ -37,6 +37,7 @@ void addTriangle(struct OBJTriangle* addition, struct OBJ* object);
 void addPosition(struct OBJVec3* addition, struct OBJ* object);
 void addNormal(struct OBJVec3* addition, struct OBJ* object);
 
+struct Vec3* plane_normal(struct OBJTriangle* triangle);
 
 struct OBJVec3* OBJVec3(struct Vec3* input);
 

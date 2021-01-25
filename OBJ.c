@@ -168,9 +168,10 @@ struct OBJTriangle* OBJTriangle(int i1, int i2, int i3, int i4, int i5, int i6) 
 struct Vec3* plane_normal(struct OBJTriangle* triangle) {
   struct Vec3* AB = subVec3(triangle->position2, triangle->position1);
   struct Vec3* AC = subVec3(triangle->position3, triangle->position1);
+  struct Vec3* normal = crossVec3(AB, AC);
   free(AB);
   free(AC);
-  struct Vec3* normal = crossVec3(AB, AC);
+  return normal;
 }
 
 
@@ -178,6 +179,7 @@ struct OBJVec3* OBJVec3(struct Vec3* input) {
   struct OBJVec3* objvec = (struct OBJVec3*) malloc(sizeof(struct OBJVec3));
   objvec->vec = input;
   objvec->next = NULL;
+  return objvec;
 }
 
 void addTriangle(struct OBJTriangle* addition, struct OBJ* object) {
