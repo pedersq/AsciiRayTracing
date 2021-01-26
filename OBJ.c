@@ -69,6 +69,7 @@ struct OBJ* load_obj(char* filename) {
       sscanf(triangle_point, "%d %d %d", &i3, &t3, &n3);
 
       struct OBJTriangle* tri = OBJTriangle(i1, i2, i3, n1, n2, n3);
+
       addTriangle(tri, obj);
     }
 
@@ -101,6 +102,10 @@ void populate_triangles(struct OBJ* obj) {
     triangle->normal3 = get_normal(triangle->n3, obj);
     triangle = triangle->next;
   }
+}
+
+void print_vec3(struct Vec3* vec) {
+  printf("%f, %f, %f\n", vec->x, vec->y, vec->z);
 }
 
 struct Vec3* get_position(int idx, struct OBJ* obj) {
@@ -144,6 +149,7 @@ struct OBJ* OBJ(struct OBJVec3* pos,
   newobj->num_positions = count_positions;
   newobj->num_normals = count_normals;
   newobj->num_triangles = count_triangles;
+  printf("Created a OBJ with %d triangles\n", newobj->num_triangles);
   return newobj;
 }
 
@@ -183,17 +189,27 @@ struct OBJVec3* OBJVec3(struct Vec3* input) {
 }
 
 void addTriangle(struct OBJTriangle* addition, struct OBJ* object) {
+
+  object->num_triangles += 1;
+
   if (object->triangles == NULL) {
+
     object->triangles = addition;
+
+
+
   } else {
+
     struct OBJTriangle* curr = object->triangles;
     while (curr->next != NULL) {
       curr = curr->next;
     }
     curr->next = addition;
+
   }
 
-  object->num_triangles += 1;
+
+
 }
 
 void addPosition(struct OBJVec3* addition, struct OBJ* object) {

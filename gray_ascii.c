@@ -30,7 +30,7 @@ float calculate_lighting(struct Ray3* viewing_ray, float t, struct OBJTriangle* 
 void process_frame();
 
 // The output image / frame
-float img[pixels_y][pixels_x];
+float img[pixels_x][pixels_y];
 
 // Camera Position
 struct Vec3* camera;
@@ -48,7 +48,7 @@ int viewport_width = 1;
 // Light in the scene
 
 struct Vec3 light = {0.0, -1.0, 1.0};
-struct Vec3 neg_light = {0.0, 1.0, 0.0};
+struct Vec3 neg_light = {0.0, 1.0, -1.0};
 float intensity = 1.0;
 
 struct OBJ* objects[10];
@@ -74,14 +74,15 @@ void clearScreen()
 }
 
 void initScene() {
-  camera = Vec3(0.0, 0.0, 3.0);
+  camera = Vec3(0.0, 0.0, 1.0);
   view_direction = Vec3(0.0, 0.0, -1.0);
   struct OBJ* obj = load_obj("data/Sphere.obj");
 
 
 
   objects[0] = obj;
-  num_objects += 1;
+
+  num_objects = 1;
 
   printf("Scene loaded.\n");
 }
@@ -111,20 +112,19 @@ void process_frame() {
     for (int i = 0; i < pixels_x; i++) {
 
 
-
       // Generate the viewing ray
-      struct Ray3* viewing_ray = gen_viewing_ray(i, j);
+      struct Ray3* viewing_ray = gen_viewing_ray((float) i, (float) j);
 
       // Keeps track of the cloeset triangle the ray hit
       // accross all objects in the scene
-      struct OBJTriangle* triangle_hit;
+      struct OBJTriangle* triangle_hit = NULL;
       float min_t = FLT_MAX;
 
       // Checks every object in the scene for an intersction and saves the closest
       // triangle hit from any object
-      for (int i = 1; i <= num_objects; i++) {
-        float t;
-        struct OBJTriangle* triangle = closest_intersection(viewing_ray, objects[i - 1], &t);
+      for (int k = 0; k < num_objects; k++) {
+        float t = FLT_MAX;
+        struct OBJTriangle* triangle = closest_intersection(viewing_ray, objects[k], &t);
 
         if (t < min_t) {
           min_t = t;
@@ -133,8 +133,9 @@ void process_frame() {
       }
 
       // Shades the pixel based on the triangle hit
-      if (closest_intersection != NULL) {
-        img[i][j] = calculate_lighting(viewing_ray, min_t, triangle_hit);
+      if (triangle_hit != NULL) {
+        printf("Shading pixel: %d %d\n", i, j);
+        img[i][j] = 1.0; //calculate_lighting(viewing_ray, min_t, triangle_hit);
       } else {
         img[i][j] = 0.0;
       }
@@ -151,7 +152,6 @@ float calculate_lighting(struct Ray3* viewing_ray, float t, struct OBJTriangle* 
   // TRIANGLE, BUT IN THE FUTURE IT WOULD BE GOOD TO INTERPOLATE THE NORMAL
   // FROM THE 3 NORMALS STORED ON THE PASSED TRIANGLE
 
-
   struct Vec3* tri_normal = plane_normal(triangle);
 
   float n_dot_l = dotVec3(tri_normal, &neg_light);
@@ -162,7 +162,9 @@ float calculate_lighting(struct Ray3* viewing_ray, float t, struct OBJTriangle* 
   // Squishes the value between 0 and 1
   float value = tanhf(theta);
 
-  return fmaxf(value, 0.0);
+  float max = fmaxf(value, 0.0);
+
+  return max;
 
 }
 
@@ -180,15 +182,18 @@ struct OBJTriangle* closest_intersection(struct Ray3* ray, struct OBJ* object, f
   float min_t = FLT_MAX;
   struct OBJTriangle* closest_tri = NULL;
 
-  int num_triangle = 0;
+  int t_hit = 0;
 
   while (curr != NULL) {
-    num_triangle += 1;
-    printf("%d\n", num_triangle);
     float distance_to_triangle = is_point_in_triangle(ray, curr);
-    if (min_t > distance_to_triangle) {
-      min_t = distance_to_triangle;
-      closest_tri = curr;
+
+    if (distance_to_triangle != -1.0 ) {
+      if (min_t > distance_to_triangle) {
+        min_t = distance_to_triangle;
+        closest_tri = curr;
+      }
+      t_hit += 1;
+      printf("t_hit = %d\n", t_hit);
     }
     curr = curr->next;
   }
@@ -340,6 +345,9 @@ struct Ray3* gen_viewing_ray(float i, float j) {
   free(p2);
   free(p3);
   struct Ray3* ray = Ray3(camera, ray_direction);
+  printf("Ray for %f %f\n", i, j);
+  print_vec3(ray_direction);
+  printf("\n");
   return ray;
 }
 

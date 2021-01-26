@@ -33,6 +33,9 @@ struct OBJVec3 {
   struct OBJVec3* next;
 };
 
+void print_vec3(struct Vec3* vec);
+
+
 void addTriangle(struct OBJTriangle* addition, struct OBJ* object);
 void addPosition(struct OBJVec3* addition, struct OBJ* object);
 void addNormal(struct OBJVec3* addition, struct OBJ* object);
