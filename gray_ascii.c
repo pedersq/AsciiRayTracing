@@ -10,9 +10,10 @@
 typedef struct Vec3* P3;
 
 
+
 #define SCALE_LEN 66
-#define pixels_x 100
-#define pixels_y 50
+#define pixels_x 50
+#define pixels_y 30
 
 #define epsilon 0.0005
 
@@ -38,6 +39,11 @@ float img[pixels_x][pixels_y];
 
 // Camera Position
 struct Vec3* camera;
+float cx;
+float cy;
+float cz;
+float cangle;
+float radius = 5;
 
 // Distance to viewing window from camera eye
 float distance_to_window = 1;
@@ -46,14 +52,14 @@ float distance_to_window = 1;
 struct Vec3* view_direction;
 
 // Viewport
-int viewport_height = 1;
-int viewport_width = 2;
+float viewport_height = 1;
+float viewport_width = 1;
 
 // Light in the scene
 
-struct Vec3 light = {0.0, 0.0, 1.0};
-struct Vec3 neg_light = {0.0, 0.0, -1.0};
-float intensity = 1.0;
+struct Vec3 light = {0.0, 1.0, 1.0};
+struct Vec3 neg_light = {0.0, -1.0, -1.0};
+float intensity = 30.0;
 
 struct OBJ* objects[10];
 int num_objects = 0;
@@ -78,8 +84,11 @@ void clearScreen()
 }
 
 void initScene() {
-  camera = Vec3(0.0, 0.0, 5.0);
-  view_direction = Vec3(0.0, 0.0, -1.0);
+  camera = Vec3(0.0, 0.0, 5);
+
+  view_direction = normalize3(negate3(camera));
+  print_vec3(camera);
+  print_vec3(view_direction);
   struct OBJ* obj = load_obj("data/Sphere.obj");
 
 
@@ -96,9 +105,15 @@ int main() {
 
   initScene();
 
-  process_frame();
+  //for (int i = 0; i < 32; i++) {
 
-  render_frame();
+    process_frame();
+
+    render_frame();
+
+    //tickScene();
+
+  //}
 
 
   return 0;
@@ -166,12 +181,11 @@ float calculate_lighting(struct Ray3* viewing_ray, float t, struct OBJTriangle* 
   float n_dot_l = dotVec3(tri_normal, &light);
   free(tri_normal);
 
-  float theta = acosf(n_dot_l);
 
   // Squishes the value between 0 and 1
-  float value = tanhf(theta);
+  //float value = tanhf();
 
-  float max = fmaxf(value, 0.0);
+  float max = fmaxf(n_dot_l * intensity, 0.0);
 
   return max;
 

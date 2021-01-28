@@ -1,3 +1,5 @@
+typedef struct OBJ* Object;
+
 struct OBJ {
 
   struct OBJVec3* positions;

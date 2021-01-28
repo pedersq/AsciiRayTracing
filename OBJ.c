@@ -102,6 +102,7 @@ void populate_triangles(struct OBJ* obj) {
     triangle->normal3 = get_normal(triangle->n3, obj);
     triangle = triangle->next;
   }
+  printf("Loaded OBJ with %d triangles\n", obj->num_triangles);
 }
 
 void print_vec3(struct Vec3* vec) {
@@ -149,7 +150,6 @@ struct OBJ* OBJ(struct OBJVec3* pos,
   newobj->num_positions = count_positions;
   newobj->num_normals = count_normals;
   newobj->num_triangles = count_triangles;
-  printf("Created a OBJ with %d triangles\n", newobj->num_triangles);
   return newobj;
 }
 
