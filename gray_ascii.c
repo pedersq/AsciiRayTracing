@@ -7,10 +7,12 @@
 #include "vectors.h"
 #include "OBJ.h"
 
+typedef struct Vec3* P3;
+
 
 #define SCALE_LEN 66
-#define pixels_x 150
-#define pixels_y 40
+#define pixels_x 100
+#define pixels_y 50
 
 #define epsilon 0.0005
 
@@ -28,6 +30,8 @@ int point_in_barycentric(float alpha, float beta, float gamma);
 struct Vec3* ray_plane_intersect(struct Ray3* ray, struct OBJTriangle* triangle, float* rayT);
 float calculate_lighting(struct Ray3* viewing_ray, float t, struct OBJTriangle* triangle);
 void process_frame();
+void compute_barycentric(struct Vec3* point, struct Vec3* a, struct Vec3* b, struct Vec3* c, float* alpha, float* beta, float* gamma);
+float area_of_triangle2(P3 a, P3 b, P3 c);
 
 // The output image / frame
 float img[pixels_x][pixels_y];
@@ -43,12 +47,12 @@ struct Vec3* view_direction;
 
 // Viewport
 int viewport_height = 1;
-int viewport_width = 1;
+int viewport_width = 2;
 
 // Light in the scene
 
-struct Vec3 light = {0.0, -1.0, 1.0};
-struct Vec3 neg_light = {0.0, 1.0, -1.0};
+struct Vec3 light = {0.0, 0.0, 1.0};
+struct Vec3 neg_light = {0.0, 0.0, -1.0};
 float intensity = 1.0;
 
 struct OBJ* objects[10];
@@ -58,7 +62,7 @@ char grayscale[] =  "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/()1{}[]?-_+~<>i!lI
 
 
 void render_frame() {
-  clearScreen();
+  //clearScreen();
   for (int j = 0; j < pixels_y; j++) {
     for (int i = 0; i < pixels_x; i++) {
       printf("%c", float_to_ascii(img[i][j]));
@@ -74,7 +78,7 @@ void clearScreen()
 }
 
 void initScene() {
-  camera = Vec3(0.0, 0.0, 1.0);
+  camera = Vec3(0.0, 0.0, 5.0);
   view_direction = Vec3(0.0, 0.0, -1.0);
   struct OBJ* obj = load_obj("data/Sphere.obj");
 
@@ -92,11 +96,10 @@ int main() {
 
   initScene();
 
-
-
   process_frame();
 
   render_frame();
+
 
   return 0;
 
@@ -108,12 +111,18 @@ int main() {
 
 void process_frame() {
 
+  int pixels_shaded = 0;
+
   for (int j = 0; j < pixels_y; j++) {
     for (int i = 0; i < pixels_x; i++) {
 
 
       // Generate the viewing ray
+      //struct Ray3* viewing_ray = gen_viewing_ray((float) i, (float) j);
+
       struct Ray3* viewing_ray = gen_viewing_ray((float) i, (float) j);
+
+
 
       // Keeps track of the cloeset triangle the ray hit
       // accross all objects in the scene
@@ -134,8 +143,8 @@ void process_frame() {
 
       // Shades the pixel based on the triangle hit
       if (triangle_hit != NULL) {
-        printf("Shading pixel: %d %d\n", i, j);
-        img[i][j] = 1.0; //calculate_lighting(viewing_ray, min_t, triangle_hit);
+        pixels_shaded += 1;
+        img[i][j] = calculate_lighting(viewing_ray, min_t, triangle_hit);
       } else {
         img[i][j] = 0.0;
       }
@@ -154,7 +163,7 @@ float calculate_lighting(struct Ray3* viewing_ray, float t, struct OBJTriangle* 
 
   struct Vec3* tri_normal = plane_normal(triangle);
 
-  float n_dot_l = dotVec3(tri_normal, &neg_light);
+  float n_dot_l = dotVec3(tri_normal, &light);
   free(tri_normal);
 
   float theta = acosf(n_dot_l);
@@ -184,16 +193,17 @@ struct OBJTriangle* closest_intersection(struct Ray3* ray, struct OBJ* object, f
 
   int t_hit = 0;
 
+
+
   while (curr != NULL) {
     float distance_to_triangle = is_point_in_triangle(ray, curr);
+    t_hit += 1;
 
-    if (distance_to_triangle != -1.0 ) {
+    if (distance_to_triangle != -FLT_MAX ) {
       if (min_t > distance_to_triangle) {
         min_t = distance_to_triangle;
         closest_tri = curr;
       }
-      t_hit += 1;
-      printf("t_hit = %d\n", t_hit);
     }
     curr = curr->next;
   }
@@ -214,20 +224,40 @@ float is_point_in_triangle(struct Ray3* ray, struct OBJTriangle* triangle) {
   float t;
   struct Vec3* point = ray_plane_intersect(ray, triangle, &t);
 
+
   if (point == NULL) {
-    return -1.0;
+    return -FLT_MAX;
   }
 
   float tri_area = area_of_triangle(triangle);
-  float alpha = barycentric_alpha(point, triangle->position2, triangle->position3, tri_area);
-  float beta = barycentric_beta(point, triangle->position1, triangle->position3, tri_area);
-  float gamma = 1 - alpha - beta;
+
+  float alpha;
+  float beta;
+  float gamma;
+  compute_barycentric(point,
+                      triangle->position1,
+                      triangle->position2,
+                      triangle->position3,
+                      &alpha,
+                      &beta,
+                      &gamma
+  );
+
 
   if (point_in_barycentric(alpha, beta, gamma)) {
     return t;
   } else {
-    return -1.0;
+    return -FLT_MAX;
   }
+
+}
+
+
+void compute_barycentric(struct Vec3* point, struct Vec3* a, struct Vec3* b, struct Vec3* c, float* alpha, float* beta, float* gamma) {
+
+  *alpha = area_of_triangle2(point, c, b) / area_of_triangle2(a, b, c);
+  *beta = area_of_triangle2(point, c, a) / area_of_triangle2(a, b, c);
+  *gamma = 1.0 - *alpha - *beta;
 
 }
 
@@ -273,8 +303,7 @@ struct Vec3* ray_plane_intersect(struct Ray3* ray, struct OBJTriangle* triangle,
 int point_in_barycentric(float alpha, float beta, float gamma) {
   return alpha <= 1 && alpha >= 0 &&
       beta <= 1 && beta >= 0 &&
-      gamma <= 1 && gamma >= 0 &&
-      floats_equal(alpha + beta + gamma, 1.0);
+      gamma <= 1 && gamma >= 0;
 }
 
 int floats_equal(float f1, float f2) {
@@ -285,6 +314,17 @@ float area_of_triangle(struct OBJTriangle* triangle) {
   struct Vec3* AB = subVec3(triangle->position2, triangle->position1);
   struct Vec3* AC = subVec3(triangle->position3, triangle->position1);
   struct Vec3* AB_cross_BC = crossVec3(AB, AC);
+  float areaABC = lenVec3(AB_cross_BC) / 2;
+  free(AB_cross_BC);
+  free(AB);
+  free(AC);
+  return areaABC;
+}
+
+float area_of_triangle2(P3 a, P3 b, P3 c) {
+  P3 AB = subVec3(b, a);
+  P3 AC = subVec3(c, a);
+  P3 AB_cross_BC = crossVec3(AB, AC);
   float areaABC = lenVec3(AB_cross_BC) / 2;
   free(AB_cross_BC);
   free(AB);
@@ -314,10 +354,12 @@ float barycentric_beta(struct Vec3* point, struct Vec3* A, struct Vec3* C, float
   return beta;
 }
 
+
 struct Ray3* gen_viewing_ray(float i, float j) {
   // Convert (i, j) to (u, v)
-  float u = ((i + 0.5) / 2 + 0.5) * viewport_width;
-  float v = ((j + 0.5) / 2 + 0.5) * viewport_height;
+
+  float u = ((((i + 1.0) - 0.5) / pixels_x) - 0.5) * viewport_width;
+  float v = -((((j + 1.0) - 0.5) / pixels_y) - 0.5) * viewport_height;
 
   // TODO: this might be wrong
   struct Vec3* d = Vec3(-u, -v, -distance_to_window);
@@ -345,9 +387,6 @@ struct Ray3* gen_viewing_ray(float i, float j) {
   free(p2);
   free(p3);
   struct Ray3* ray = Ray3(camera, ray_direction);
-  printf("Ray for %f %f\n", i, j);
-  print_vec3(ray_direction);
-  printf("\n");
   return ray;
 }
 
@@ -357,5 +396,5 @@ char float_to_ascii(float x) {
   }
 
   int pos = (int) (x * SCALE_LEN);
-  return grayscale[pos];
+  return grayscale[SCALE_LEN - pos];
 }
