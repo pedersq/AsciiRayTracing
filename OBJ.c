@@ -5,7 +5,6 @@
 #include <stdlib.h>
 
 void remove_slashes(char* line, int len);
-void populate_triangles(struct OBJ* obj);
 struct Vec3* get_position(int idx, struct OBJ* obj);
 struct Vec3* get_normal(int idx, struct OBJ* obj);
 

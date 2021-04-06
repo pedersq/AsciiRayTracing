@@ -36,6 +36,7 @@ struct OBJVec3 {
 };
 
 void print_vec3(struct Vec3* vec);
+void populate_triangles(struct OBJ* obj);
 
 
 void addTriangle(struct OBJTriangle* addition, struct OBJ* object);
